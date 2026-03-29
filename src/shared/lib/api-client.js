@@ -73,19 +73,40 @@ export async function callClaude(promptOrSystem, maxTokensOrUser, appIdOrMaxToke
 
     const data = await res.json();
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ""
-      .trim()
+    // Extract text from normalised Anthropic-shape response
+    const text = (data.content || [])
+      .map(b => b.text || "")
+      .join("")
+      .trim();
+
+    if (!text) {
+      // Empty response — surface finish reason if available
+      const reason = data._finishReason || "unknown";
+      throw new Error(\`Empty response from AI (reason: \${reason}) — please try again\`);
+    }
+
+    // Strip markdown fences (Gemini sometimes adds these even with responseMimeType set)
+    let clean = text
       .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/i, "")
+      .replace(/\s*```\s*$/i, "")
       .trim();
 
     let parsed;
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(clean);
     } catch {
-      const m = text.match(/\{[\s\S]*\}/);
-      if (m) parsed = JSON.parse(m[0]);
-      else throw new Error("Could not parse response — please try again");
+      // Last resort: find first complete JSON object or array in the text
+      const obj = clean.match(/\{[\s\S]*\}/);
+      const arr = clean.match(/\[[\s\S]*\]/);
+      const match = obj && arr
+        ? (clean.indexOf("{") < clean.indexOf("[") ? obj : arr)
+        : (obj || arr);
+      if (match) {
+        try { parsed = JSON.parse(match[0]); }
+        catch { throw new Error(\`Could not parse response — please try again\`); }
+      } else {
+        throw new Error(\`Could not parse response — please try again\`);
+      }
     }
 
     return parsed;
