@@ -73,9 +73,7 @@ export async function callClaude(promptOrSystem, maxTokensOrUser, appIdOrMaxToke
 
     const data = await res.json();
 
-    const text = (data.content || [])
-      .map(b => b.text || "")
-      .join("")
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ""
       .trim()
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/i, "")
