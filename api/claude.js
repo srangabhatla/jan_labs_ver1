@@ -235,7 +235,10 @@ export default async function handler(req, res) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents:         toGeminiContents(messages),
-          generationConfig: { maxOutputTokens: max_tokens || 1000 },
+          generationConfig: {
+            maxOutputTokens:  max_tokens || 1000,
+            responseMimeType: "application/json",
+          },
         }),
       }
     );
