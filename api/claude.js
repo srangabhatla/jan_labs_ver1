@@ -3,20 +3,22 @@
  * File: /api/claude.js  (Vercel auto-routes POST /api/claude)
  *
  * Environment variables required in Vercel dashboard:
- *   ANTHROPIC_API_KEY      — your Anthropic key (never exposed to browser)
- *   SUPABASE_URL           — your Supabase project URL
- *   SUPABASE_SERVICE_KEY   — Supabase service role key (server-only, not anon key)
+ *   GEMINI_API_KEY       — your Google AI Studio key (never exposed to browser)
+ *   SUPABASE_URL         — your Supabase project URL
+ *   SUPABASE_SERVICE_KEY — Supabase service role key (server-only, not anon key)
  *
  * Request body expected:
  *   { app_id, messages, max_tokens, session_token }
  *
- * Response: identical to Anthropic /v1/messages response
+ * Response: normalised to Anthropic shape so api-client.js needs zero changes:
+ *   { content: [{ type: "text", text: "..." }], usage: { input_tokens, output_tokens } }
  */
 
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const GEMINI_MODEL    = "gemini-2.5-flash";
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const DAILY_TOKEN_LIMIT = 50_000;
 
-// ── Allowed app IDs — add new apps here as you build them ──────────────────
+// ── Allowed app IDs ────────────────────────────────────────────────────────
 const VALID_APP_IDS = new Set([
   "visualmind",
   "feedback-translator",
@@ -29,16 +31,14 @@ const VALID_APP_IDS = new Set([
   "sprint-mind",
   "contract-scan",
   "skinstack",
-  // future apps:
   "plot-doctor",
   "world-builder",
   "stakeholder-translator",
   "decision-lens",
 ]);
 
-// ── CORS headers ──────────────────────────────────────────────────────────
-function corsHeaders(origin) {
-  // In production, lock this down to your actual domain
+// ── CORS headers ───────────────────────────────────────────────────────────
+function corsHeaders() {
   const allowed = process.env.ALLOWED_ORIGIN || "*";
   return {
     "Access-Control-Allow-Origin":  allowed,
@@ -51,7 +51,73 @@ function json(res, status, body) {
   return res.status(status).json(body);
 }
 
-// ── Verify Supabase JWT and return user_id ────────────────────────────────
+// ── Convert Anthropic-style messages → Gemini contents ────────────────────
+// Anthropic: { role: "user", content: "text" }
+//         or { role: "user", content: [{ type:"text", text:"..." }, { type:"image", source:{...} }] }
+// Gemini:   { role: "user", parts: [{ text: "..." }] }
+//         or { role: "user", parts: [{ inlineData: { mimeType, data } }, { text: "..." }] }
+function toGeminiContents(messages) {
+  return messages.map(msg => {
+    const role = msg.role === "assistant" ? "model" : "user";
+
+    // Simple string content
+    if (typeof msg.content === "string") {
+      return { role, parts: [{ text: msg.content }] };
+    }
+
+    // Already in Gemini parts format (VisualMind / ContractScan after their fix)
+    if (msg.parts) {
+      return { role, parts: msg.parts };
+    }
+
+    // Anthropic content array — convert each block
+    if (Array.isArray(msg.content)) {
+      const parts = msg.content.map(block => {
+        if (block.type === "text") {
+          return { text: block.text };
+        }
+        if (block.type === "image") {
+          return {
+            inlineData: {
+              mimeType: block.source.media_type,
+              data:     block.source.data,
+            },
+          };
+        }
+        if (block.type === "document") {
+          return {
+            inlineData: {
+              mimeType: "application/pdf",
+              data:     block.source.data,
+            },
+          };
+        }
+        return { text: block.text || "" };
+      });
+      return { role, parts };
+    }
+
+    // Fallback
+    return { role, parts: [{ text: String(msg.content || "") }] };
+  });
+}
+
+// ── Normalise Gemini response → Anthropic shape ────────────────────────────
+// This means api-client.js stays completely unchanged.
+// It still reads: data.content[0].text  ✓
+function toAnthropicShape(geminiData) {
+  const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const usage = geminiData?.usageMetadata || {};
+  return {
+    content: [{ type: "text", text }],
+    usage: {
+      input_tokens:  usage.promptTokenCount     || 0,
+      output_tokens: usage.candidatesTokenCount || 0,
+    },
+  };
+}
+
+// ── Verify Supabase JWT and return user_id ─────────────────────────────────
 async function verifySession(sessionToken) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey  = process.env.SUPABASE_SERVICE_KEY;
@@ -60,7 +126,6 @@ async function verifySession(sessionToken) {
     throw new Error("Supabase env vars not configured");
   }
 
-  // Use Supabase Auth REST API to validate JWT
   const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: {
       "Authorization": `Bearer ${sessionToken}`,
@@ -74,10 +139,10 @@ async function verifySession(sessionToken) {
   }
 
   const user = await res.json();
-  return user.id; // UUID
+  return user.id;
 }
 
-// ── Check + update daily token usage in Supabase ──────────────────────────
+// ── Check + log daily token usage in Supabase ─────────────────────────────
 async function checkAndLogUsage(userId, appId, tokensUsed) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey  = process.env.SUPABASE_SERVICE_KEY;
@@ -88,7 +153,6 @@ async function checkAndLogUsage(userId, appId, tokensUsed) {
     "Prefer":        "return=minimal",
   };
 
-  // Sum tokens used in last 24 hours for this user
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const usageRes = await fetch(
     `${supabaseUrl}/rest/v1/usage_logs?user_id=eq.${userId}&created_at=gte.${since}&select=tokens_used`,
@@ -97,8 +161,8 @@ async function checkAndLogUsage(userId, appId, tokensUsed) {
 
   if (!usageRes.ok) throw new Error("Could not read usage data");
 
-  const rows        = await usageRes.json();
-  const totalSoFar  = rows.reduce((sum, r) => sum + (r.tokens_used || 0), 0);
+  const rows       = await usageRes.json();
+  const totalSoFar = rows.reduce((sum, r) => sum + (r.tokens_used || 0), 0);
 
   if (totalSoFar >= DAILY_TOKEN_LIMIT) {
     throw new Error(
@@ -106,50 +170,36 @@ async function checkAndLogUsage(userId, appId, tokensUsed) {
     );
   }
 
-  // Log this request's usage (fire-and-forget after we know limit is ok)
   if (tokensUsed > 0) {
     fetch(`${supabaseUrl}/rest/v1/usage_logs`, {
       method:  "POST",
       headers: { ...headers, "Prefer": "return=minimal" },
-      body: JSON.stringify({
-        user_id:     userId,
-        app_id:      appId,
-        tokens_used: tokensUsed,
-      }),
-    }).catch(() => {}); // non-blocking — don't fail request if logging fails
+      body: JSON.stringify({ user_id: userId, app_id: appId, tokens_used: tokensUsed }),
+    }).catch(() => {});
   }
 
   return { totalSoFar, remaining: DAILY_TOKEN_LIMIT - totalSoFar };
 }
 
-// ── Count tokens from Anthropic response ─────────────────────────────────
-function extractTokenCount(data) {
-  const m = data?.usageMetadata;
-  return (m?.promptTokenCount || 0) + (m?.candidatesTokenCount || 0);
-}
-
-// ── Main handler ──────────────────────────────────────────────────────────
+// ── Main handler ───────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   const origin = req.headers.origin || "";
 
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    Object.entries(corsHeaders(origin)).forEach(([k, v]) => res.setHeader(k, v));
+    Object.entries(corsHeaders()).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(204).end();
   }
 
-  Object.entries(corsHeaders(origin)).forEach(([k, v]) => res.setHeader(k, v));
+  Object.entries(corsHeaders()).forEach(([k, v]) => res.setHeader(k, v));
 
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed" });
   }
 
-  // ── Parse body ──
   const { app_id, messages, max_tokens, session_token } = req.body || {};
 
-  // Validate required fields
-  if (!session_token)           return json(res, 401, { error: "No session token provided" });
-  if (!app_id)                  return json(res, 400, { error: "app_id is required" });
+  if (!session_token)             return json(res, 401, { error: "No session token provided" });
+  if (!app_id)                    return json(res, 400, { error: "app_id is required" });
   if (!VALID_APP_IDS.has(app_id)) return json(res, 400, { error: `Unknown app_id: ${app_id}` });
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return json(res, 400, { error: "messages array is required" });
@@ -163,57 +213,50 @@ export default async function handler(req, res) {
     return json(res, 401, { error: e.message || "Authentication failed" });
   }
 
-  // ── Pre-flight rate limit check (with 0 tokens — just reads current usage) ──
+  // ── Pre-flight rate limit check ──
   try {
     await checkAndLogUsage(userId, app_id, 0);
   } catch (e) {
     return json(res, 429, { error: e.message });
   }
 
-  // ── Call Anthropic ──
-  let anthropicData;
-  try {
-    const anthropicRes = await fetch(ANTHROPIC_API_URL, {
-      method:  "POST",
-      headers: {
-        "Content-Type":      "application/json",
-        "anthropic-version": "2023-06-01",
-        "x-api-key":         process.env.ANTHROPIC_API_KEY,
-      },
-      body: JSON.stringify({
-        model:      MODEL,
-        max_tokens: max_tokens || 1000,
-        messages,
-      }),
-    });
-
-    if (!anthropicRes.ok) {
-      const errBody = await anthropicRes.json().catch(() => ({}));
-      return json(res, anthropicRes.status, {
-        error: errBody?.error?.message || `Anthropic error ${anthropicRes.status}`,
-      });
-    }
-
-    anthropicData = await anthropicRes.json();
-  } catch (e) {
-    return json(res, 502, { error: "Failed to reach Anthropic API" });
+  // ── Call Gemini ────────────────────────────────────────────────────────
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return json(res, 500, { error: "GEMINI_API_KEY is not configured in environment variables" });
   }
 
-  // ── Log actual token usage (non-blocking) ──
-  const tokensUsed = extractTokenCount(anthropicData);
-  checkAndLogUsage(userId, app_id, tokensUsed).catch(() => {});
+  let geminiData;
+  try {
+    const geminiRes = await fetch(
+      `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents:         toGeminiContents(messages),
+          generationConfig: { maxOutputTokens: max_tokens || 1000 },
+        }),
+      }
+    );
 
-  // ── Return response ──
-  return json(res, 200, anthropicData);
-  // Anthropic needs x-api-key + anthropic-version headers + messages array
-// Gemini needs the key in the URL as ?key=... and a contents array
+    if (!geminiRes.ok) {
+      const errBody = await geminiRes.json().catch(() => ({}));
+      const errMsg  = errBody?.error?.message || `Gemini error ${geminiRes.status}`;
+      return json(res, geminiRes.status, { error: errMsg });
+    }
 
-const geminiRes = await fetch(`${GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    contents: messages,          // messages array format also changes — see File 2
-    generationConfig: { maxOutputTokens: max_tokens || 1000 }
-  })
-});
+    geminiData = await geminiRes.json();
+  } catch (e) {
+    return json(res, 502, { error: "Failed to reach Gemini API" });
+  }
+
+  // ── Normalise to Anthropic shape so frontend needs zero changes ──
+  const normalised = toAnthropicShape(geminiData);
+
+  // ── Log token usage (non-blocking) ──
+  checkAndLogUsage(userId, app_id, normalised.usage.input_tokens + normalised.usage.output_tokens)
+    .catch(() => {});
+
+  return json(res, 200, normalised);
 }
