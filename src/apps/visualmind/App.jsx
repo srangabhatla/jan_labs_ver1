@@ -258,8 +258,9 @@ async function claudeMultimodal(imageB64, system) {
   const messages = [{
     role: "user",
     parts: [
-    { inlineData: { mimeType: "image/jpeg", data: imageB64 } },
-    { text: system }
+      { inlineData: { mimeType: "image/jpeg", data: imageB64 } },
+      { text: system }
+    ]
   }];
   return callClaudeRaw(messages, 1200, "visualmind");
 }
