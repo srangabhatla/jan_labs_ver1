@@ -82,7 +82,7 @@ export async function callClaude(promptOrSystem, maxTokensOrUser, appIdOrMaxToke
     if (!text) {
       // Empty response — surface finish reason if available
       const reason = data._finishReason || "unknown";
-      throw new Error(\`Empty response from AI (reason: \${reason}) — please try again\`);
+      throw new Error("Empty response from AI (reason: " + reason + ") — please try again");
     }
 
     // Strip markdown fences (Gemini sometimes adds these even with responseMimeType set)
@@ -103,9 +103,9 @@ export async function callClaude(promptOrSystem, maxTokensOrUser, appIdOrMaxToke
         : (obj || arr);
       if (match) {
         try { parsed = JSON.parse(match[0]); }
-        catch { throw new Error(\`Could not parse response — please try again\`); }
+        catch { throw new Error("Could not parse response — please try again"); }
       } else {
-        throw new Error(\`Could not parse response — please try again\`);
+        throw new Error("Could not parse response — please try again");
       }
     }
 
