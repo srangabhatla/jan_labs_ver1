@@ -14,7 +14,7 @@
  *   { content: [{ type: "text", text: "..." }], usage: { input_tokens, output_tokens } }
  */
 
-const GEMINI_MODEL    = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-2.0-flash-lite";  // higher free tier limits;
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const DAILY_TOKEN_LIMIT = 50_000;
 
