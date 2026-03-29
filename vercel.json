@@ -56,10 +56,5 @@
         }
       ]
     }
-  ],
-  "env": {
-    "REACT_APP_SUPABASE_URL": "@react_app_supabase_url",
-    "REACT_APP_SUPABASE_ANON": "@react_app_supabase_anon",
-    "REACT_APP_PROXY_URL": "/api/claude"
-  }
+  ]
 }
