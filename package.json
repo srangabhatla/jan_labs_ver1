@@ -1,0 +1,33 @@
+{
+  "name": "janardhan-labs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Janardhan Labs — AI utility app portfolio by Sriharsha",
+  "scripts": {
+    "dev":         "react-scripts start",
+    "build":       "react-scripts build",
+    "test":        "react-scripts test --watchAll=false",
+    "lint":        "eslint src apps shared --ext .js,.jsx --max-warnings 0",
+    "format":      "prettier --write \"**/*.{js,jsx,json,md,css}\"",
+    "format:check":"prettier --check \"**/*.{js,jsx,json,md,css}\""
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "react":                 "^18.2.0",
+    "react-dom":             "^18.2.0",
+    "react-scripts":         "5.0.1"
+  },
+  "devDependencies": {
+    "eslint":                "^8.56.0",
+    "eslint-plugin-react":   "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "prettier":              "^3.2.4"
+  },
+  "eslintConfig": {
+    "extends": ["react-app", "react-app/jest"]
+  },
+  "browserslist": {
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+  }
+}
