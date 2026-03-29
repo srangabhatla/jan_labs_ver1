@@ -13,8 +13,7 @@
  * Response: identical to Anthropic /v1/messages response
  */
 
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const MODEL             = "claude-sonnet-4-20250514";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 const DAILY_TOKEN_LIMIT = 50_000;
 
 // ── Allowed app IDs — add new apps here as you build them ──────────────────
@@ -125,7 +124,8 @@ async function checkAndLogUsage(userId, appId, tokensUsed) {
 
 // ── Count tokens from Anthropic response ─────────────────────────────────
 function extractTokenCount(data) {
-  return (data?.usage?.input_tokens || 0) + (data?.usage?.output_tokens || 0);
+  const m = data?.usageMetadata;
+  return (m?.promptTokenCount || 0) + (m?.candidatesTokenCount || 0);
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────
@@ -205,4 +205,15 @@ export default async function handler(req, res) {
 
   // ── Return response ──
   return json(res, 200, anthropicData);
+  // Anthropic needs x-api-key + anthropic-version headers + messages array
+// Gemini needs the key in the URL as ?key=... and a contents array
+
+const geminiRes = await fetch(`${GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    contents: messages,          // messages array format also changes — see File 2
+    generationConfig: { maxOutputTokens: max_tokens || 1000 }
+  })
+});
 }
