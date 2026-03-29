@@ -247,7 +247,15 @@ const PROMPTS = {
 };
 
 function parseJSON(t) {
-  try { return JSON.parse(t.replace(/```json|```/g,"").trim()); } catch { return null; }
+  if (!t) return null;
+  // Strip markdown fences Gemini wraps around JSON
+  let s = t.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+  // Direct parse first
+  try { return JSON.parse(s); } catch {}
+  // Extract first {...} block — handles any leading/trailing prose
+  const m = s.match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch {} }
+  return null;
 }
 
 async function claude(system, content) {
@@ -257,9 +265,9 @@ async function claude(system, content) {
 async function claudeMultimodal(imageB64, system) {
   const messages = [{
     role: "user",
-    parts: [
-      { inlineData: { mimeType: "image/jpeg", data: imageB64 } },
-      { text: system }
+    content: [
+      { type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageB64 } },
+      { type: "text",  text: system }
     ]
   }];
   return callClaudeRaw(messages, 1200, "visualmind");
