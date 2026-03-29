@@ -386,14 +386,14 @@ Rules: risk = exactly "High","Medium","Low". summary = exactly 5 items. commitme
     if (snapFile?.type === "image") {
       // Image — use vision API
       return [{ role: "user", content: [
-        { type: "image", source: { type: "base64", media_type: snapFile.mediaType, data: snapFile.base64 } },
+        { inlineData: { mimeType: snapFile.mediaType, data: snapFile.base64 } },
         { type: "text", text: `${systemPart}\n\nAnalyse the contract shown in this image.` }
       ]}];
     }
     if (snapFile?.type === "pdf") {
       // PDF — use document API
       return [{ role: "user", content: [
-        { type: "document", source: { type: "base64", media_type: "application/pdf", data: snapFile.base64 } },
+       { inlineData: { mimeType: "application/pdf", data: snapFile.base64 } },
         { type: "text", text: systemPart }
       ]}];
     }
