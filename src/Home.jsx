@@ -17,6 +17,7 @@ const APPS = [
   { id:"sprint-mind",         name:"SprintMind",         tagline:"PRD + JIRA hierarchy from one sentence",       path:"/sprint-mind",         icon:"🚀", tag:"Product" },
   { id:"contract-scan",       name:"ContractScan",       tagline:"Know what you're signing before you sign it.", path:"/contract-scan",       icon:"📋", tag:"Legal" },
   { id:"skinstack",           name:"SkinStack",          tagline:"Your skin, your stack, no guesswork",          path:"/skinstack",           icon:"✨", tag:"Personal" },
+  { id:"story-bible", name:"StoryBibleBuilder", tagline:"Five sacred steps. One complete world.", path:"/story-bible", icon:"📖", tag:"Writing" },
 ];
 
 const TAG_COLORS = {
