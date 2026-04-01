@@ -1,5 +1,8 @@
 import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
+import StoryBible from "./apps/story-bible/App";
+// and in your route map:
+"/story-bible": StoryBible,
 
 // ── FIX: Lazy load all apps — no upfront bundle cost ─────────────────────
 // Each app is only loaded when the user navigates to its route.
