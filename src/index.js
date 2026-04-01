@@ -1,11 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
-import StoryBible from "./apps/story-bible/App";
-// and in your route map:
-"/story-bible": StoryBible,
 
-// ── FIX: Lazy load all apps — no upfront bundle cost ─────────────────────
-// Each app is only loaded when the user navigates to its route.
+// ── Lazy load all apps ────────────────────────────────────────────────────
 const VisualMind          = lazy(() => import("./apps/visualmind/App"));
 const FeedbackTranslator  = lazy(() => import("./apps/feedback-translator/App"));
 const DebateCoach         = lazy(() => import("./apps/debate-coach/App"));
@@ -17,9 +13,10 @@ const StyleMirror         = lazy(() => import("./apps/style-mirror/App"));
 const SprintMind          = lazy(() => import("./apps/sprint-mind/App"));
 const ContractScan        = lazy(() => import("./apps/contract-scan/App"));
 const SkinStack           = lazy(() => import("./apps/skinstack/App"));
+const StoryBible          = lazy(() => import("./apps/story-bible/App"));
 const Home                = lazy(() => import("./Home"));
 
-// ── FIX: Fallback shown while lazy chunk loads ────────────────────────────
+// ── Fallback shown while lazy chunk loads ─────────────────────────────────
 function PageLoader() {
   return (
     <div style={{
@@ -32,7 +29,7 @@ function PageLoader() {
   );
 }
 
-// ── FIX: Error boundary — catches any per-app runtime crash ──────────────
+// ── Error boundary ────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -79,7 +76,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// ── FIX: 404 page ────────────────────────────────────────────────────────
+// ── 404 page ──────────────────────────────────────────────────────────────
 function NotFound() {
   return (
     <div style={{
@@ -108,7 +105,7 @@ function NotFound() {
   );
 }
 
-// ── Route map ────────────────────────────────────────────────────────────
+// ── Route map ─────────────────────────────────────────────────────────────
 const ROUTES = {
   "/":                    <Home />,
   "/visualmind":          <VisualMind />,
@@ -122,14 +119,14 @@ const ROUTES = {
   "/sprint-mind":         <SprintMind />,
   "/contract-scan":       <ContractScan />,
   "/skinstack":           <SkinStack />,
+  "/story-bible":         <StoryBible />,
 };
 
-// ── FIX: Router — back button works + correct initial path ───────────────
+// ── Router ────────────────────────────────────────────────────────────────
 function Router() {
   const [path, setPath] = React.useState(() => window.location.pathname);
 
   React.useEffect(() => {
-    // FIX: popstate fires on back/forward — update path from current location
     const handler = () => setPath(window.location.pathname);
     window.addEventListener("popstate", handler);
     return () => window.removeEventListener("popstate", handler);
@@ -146,10 +143,9 @@ function Router() {
   );
 }
 
-// ── Navigate helper — exported so Home.jsx and apps can use it ───────────
+// ── Navigate helper ───────────────────────────────────────────────────────
 export function navigate(path) {
   window.history.pushState({}, "", path);
-  // FIX: dispatch popstate so Router re-renders — pushState alone doesn't fire it
   window.dispatchEvent(new PopStateEvent("popstate", { state: {} }));
 }
 
