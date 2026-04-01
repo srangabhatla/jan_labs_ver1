@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const MODEL        = "gemini-2.0-flash";
+const MODEL        = "gemini-2.0-flash-lite";
 const GEMINI_URL   = k => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${k}`;
 const LS_KEY       = "sbb_key_v5";
 const LS_HIST      = "sbb_history_v5";
@@ -378,7 +378,7 @@ async function callGemini(prompt, key) {
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try { const j = await res.json(); msg = j?.error?.message || msg; } catch {}
-    if (res.status === 429) throw new Error("Rate limit reached. Wait 60 seconds and retry.");
+    if (res.status === 429) throw new Error("Gemini free tier limit hit. Wait 60 seconds and retry — or get a new key at aistudio.google.com/apikey if this keeps happening.");
     if (res.status === 403) throw new Error("API key invalid or expired. Tap Change to update it.");
     if (res.status === 400) throw new Error("Bad request: " + msg);
     throw new Error(msg);
@@ -505,10 +505,11 @@ export default function App() {
 
     try {
       const res = {};
-      res[0] = await runStep(0, PROMPTS.world(d),    key);
-      res[1] = await runStep(1, PROMPTS.chars(d),    key);
-      res[2] = await runStep(2, PROMPTS.conflict(d), key);
-      res[3] = await runStep(3, PROMPTS.arc(d),      key);
+      const pause = () => new Promise(r => setTimeout(r, 1000));
+      res[0] = await runStep(0, PROMPTS.world(d),    key); await pause();
+      res[1] = await runStep(1, PROMPTS.chars(d),    key); await pause();
+      res[2] = await runStep(2, PROMPTS.conflict(d), key); await pause();
+      res[3] = await runStep(3, PROMPTS.arc(d),      key); await pause();
       res[4] = await runStep(4, PROMPTS.visual(d),   key);
 
       setResults(res);
