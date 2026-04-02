@@ -13,13 +13,119 @@ const LS_HIST      = "sbb_history_v5";
 const MAX_HIST     = 3;
 const TIMEOUT_MS   = 30000;
 
-// ── STEPS ────────────────────────────────────────────────────────────────────
+// ── TEST MODE ─────────────────────────────────────────────────────────────────
+// Set to true to run the full UI flow without any API key.
+// Every step returns mock output instantly. Flip to false before production.
+const TEST_MODE = true;
+
+const MOCK = {
+  call0: `=== SECTION 1: WORLD RULES ===
+
+**SETTING OVERVIEW:**
+Kerala, 1987 and 2023 bleeding into each other at the seams. The air smells of laterite dust and old rain. The Periyar carries silt the colour of forgotten things. Strangers sense something is wrong with the light here — it falls at angles that don't match the sun's position.
+
+**THE THREE LAWS OF THIS WORLD:**
+Law 1: The river remembers everything — but memory here is not evidence. The more clearly Arun hears it, the less anyone else will believe him.
+Law 2: The past is accessible only through grief. Joy closes it off entirely.
+Law 3: Truth is not suppressed here — it is diluted. Everyone holds a true fragment. No single fragment adds up to the whole.
+
+**POWER ANATOMY:**
+The family elders hold power through narrative monopoly — they decide which version of events is repeated at weddings and funerals until it becomes true. They sacrifice accuracy to preserve dignity. What they pretend not to know: that Arun's grandmother made a choice no one has named.
+
+**THE WOUND BENEATH THE SURFACE:**
+A drowning that was called an accident. The river knows otherwise. The family knows otherwise. The official story was chosen not to protect the dead, but to protect the living who were there.
+
+=== SECTION 2: CHARACTERS ===
+
+**PROTAGONIST:**
+Arun Pillai, 41. Teaches Malayalam literature at a government school nobody applied to. Wants to be the person who finally tells the true story — but lies to himself that he wants this for justice, not to feel exceptional. His flaw: he mistakes understanding for intimacy; he analyses people instead of loving them. His left hand trembles slightly when he is near the river.
+
+**ANTAGONIST:**
+His uncle Madhavan, 68. Retired civil servant. Core belief: a family's dignity is a collective resource that individuals have no right to spend. He is right — Arun's truth-telling will destroy three people who built entire lives on the silence.
+
+**THE FOIL:**
+Leela, Arun's student, 17. Says: "Sir, if a story is beautiful enough, does it matter if it happened?" She is what Arun becomes if he chooses beauty over truth.
+
+**THE WILDCARD:**
+The ferryman Ouseph. Surface role: boatman. Actually searching for: whether he made the right choice the night of the drowning, when he saw something and said nothing.
+
+**THE CENTRAL DYNAMIC:**
+Madhavan offers Arun the one thing he most needs — to belong to this family — on the condition that he stops asking what the river is saying.`,
+
+  call1: `=== SECTION 3: CONFLICT & THEMES ===
+
+**THE ENGINE:**
+Arun's dead grandmother's diary surfaces during a house demolition — its account of her final year contradicts every family story told about her death for 35 years.
+
+**THE REAL FIGHT:**
+Arun has spent his life teaching other people's stories because he does not trust his own perception of reality. The river is either confirming he is valid — or it is the final proof he has lost his mind.
+
+**CORE THEME:**
+Is a truth that destroys people's ability to live worth telling?
+
+**SHADOW THEMES:**
+1. Whether inheritance is gift or debt — Arun did not ask to hear the river or carry this grief.
+2. The violence of accurate memory in a culture built on curated forgetting.
+
+**THE LINE NO ONE SAYS:**
+"We knew. We all knew. We decided you were better off not knowing." — Madhavan, final act.
+
+=== SECTION 4: STORY ARC ===
+
+**ACT ONE — THE RUPTURE:**
+Arun has achieved a tolerable life by not asking questions. The diary destroys this — the worst possible moment: he finds it the same week he is being considered for a position that would finally make him respectable in his family's eyes.
+
+**ACT TWO — THE DESCENT:**
+He tries research — it doesn't fit. He tries confronting Madhavan — who offers a more coherent, comfortable, almost certainly false version. He tries fictionalising it — wins a prize. He feels sick.
+
+**ACT THREE — THE CRUCIBLE:**
+To reach the truth he must destroy his own need to be believed. He must decide whether to speak it anyway, knowing it will cost him the family position, the job, and possibly his reputation for sanity.
+
+**THE SERIES SPINE:**
+What do the living owe the dead? Across volumes — what other silences does this family run on, and who else is paying the interest?
+
+**ENDING REGISTER:**
+Pyrrhic and unresolved. Arun speaks. Some believe him. The family fractures along fault lines that were always there. The river continues. He is not healed. But he is no longer lying.
+
+=== SECTION 5: VISUAL & TONE DNA ===
+
+**COLOUR PALETTE:**
+Laterite red — the soil that stains everything; the past that cannot be washed off.
+Monsoon grey-green — the river in memory; the version of events that feels true but cannot be proven.
+Turmeric yellow — the colour of ceremony, of what the family performs in public.
+Ink black — appears only in diary pages; the one account never meant to be read.
+
+**PANEL RHYTHM:**
+Present-day: sparse, 3-4 panels, significant white space — the silence of a man who has learned not to speak. Memory scenes: dense, 7-8 panels, overlapping borders. The rhythm breaks to a single full-page panel exactly twice: when Arun first hears the river clearly, and when he finally speaks.
+
+**THE RECURRING MOTIF:**
+A wooden oar. At the start it is Ouseph's tool. By the end it has appeared as a classroom pointer, a coffin edge, a pen, a divining rod. In the final image it is still. Pointing nowhere. Or everywhere.
+
+**LIGHT PHILOSOPHY:**
+Late afternoon Kerala light just before the rains — golden and slightly wrong, familiar places looking like photographs of themselves. Not dramatic darkness. The uncanny of the almost-ordinary.
+
+**THREE REFERENCE TOUCHSTONES:**
+1. Mani Ratnam's Mouna Ragam — the quality of silence between people who once knew each other as something else.
+2. Marquez's In Evil Hour — a community's secrets visible to everyone except the people keeping them.
+3. Satyajit Ray's Charulata — an intelligent person trapped in a life that cannot hold their intelligence.
+
+**ARTIST BRIEF:**
+Draw Kerala without its postcard self. No backwater romance, no lush tourism green. Draw the mildew on old house walls. The specific orange of a government school corridor. Avoid: boats at sunset, temple festivals, coconut palms as beauty. The one image: Arun at the river's edge, facing away, water the same colour as sky, no horizon visible.`,
+};
+
+// ── STEPS (5 display cards, 2 API calls) ─────────────────────────────────────
 const STEPS = [
-  { id:0, label:"World",      icon:"◈", title:"World Rules",       msg:"Forging the world...",              pk:"world"    },
-  { id:1, label:"Characters", icon:"◉", title:"Characters",        msg:"Breathing life into characters...", pk:"chars"    },
-  { id:2, label:"Conflict",   icon:"◆", title:"Conflict & Themes", msg:"Weaving conflict and theme...",     pk:"conflict" },
-  { id:3, label:"Arc",        icon:"◐", title:"Story Arc",         msg:"Charting the arc...",               pk:"arc"      },
-  { id:4, label:"Visual DNA", icon:"◇", title:"Visual & Tone DNA", msg:"Crystallising the visual soul...", pk:"visual"   },
+  { id:0, icon:"◈", title:"World Rules"       },
+  { id:1, icon:"◉", title:"Characters"        },
+  { id:2, icon:"◆", title:"Conflict & Themes" },
+  { id:3, icon:"◐", title:"Story Arc"         },
+  { id:4, icon:"◇", title:"Visual & Tone DNA" },
+];
+
+// 2 API calls — each covers multiple sections
+const CALLS = [
+  { id:0, msg:"Forging world and characters..."        },
+  { id:1, msg:"Weaving themes, arc and visual DNA..."  },
 ];
 
 // ── GENRES ───────────────────────────────────────────────────────────────────
@@ -37,123 +143,114 @@ const GENRES = [
 ];
 
 // ── SYSTEM PROMPT (Claude-engineered) ─────────────────────────────────────────
-const SYS = `You are a master story bible writer with the sensibility of a literary author and the structural precision of a screenwriter.
+// Compressed system prompt — rules baked in, no fluff
+const SYS = `Story bible writer. Literary sensibility, screenwriter structure.
+RULES: Be SPECIFIC not general. Power shown through what people fear to say. Characters: want vs self-lie, never the same. Settings: what decayed, smells wrong. FORBIDDEN: chosen ones, prophecies, reluctant heroes. World rules have internal contradictions. Themes are questions not answers.
+FORMAT: **LABEL:** before each section. No preamble. Start immediately. Be vivid, ruthless.`;
 
-UNBREAKABLE RULES:
-- Every detail must be SPECIFIC. "A city that never sleeps" is forbidden. "A city where the traffic police take bribes in exact change" is permitted.
-- Show power through what people fear to say aloud, not what they proudly proclaim.
-- Every character must have something they want AND something they lie to themselves about. These are never the same thing.
-- Settings must feel used, not described. What has decayed, been repaired badly, smells wrong.
-- FORBIDDEN: chosen ones, ancient prophecies, reluctant heroes, mysterious strangers, love interests whose only trait is being supportive.
-- Each world rule must have an internal contradiction. The world's own logic must betray itself.
-- Themes are questions, never answers. The story interrogates. It never concludes.
-
-FORMAT:
-- Begin each section with **LABEL:** on its own line.
-- No preamble, no "Here is...", no "Certainly!". Start immediately with content.
-- Be vivid. Be ruthless. Cut the merely decorative.
-- Max 480 tokens per response.`;
-
-// ── SEED ─────────────────────────────────────────────────────────────────────
+// ── COMPRESSED SEED — ~40 tokens, passed once per call ───────────────────────
 const seed = d =>
-  `"${d.t}" (${d.g}): ${d.p}, set in ${d.s}. Concept: ${d.c.slice(0,140)}.${d.tone ? " Tone: " + d.tone + "." : ""}`;
+  `T:"${d.t}" G:${d.g} P:${d.p} S:${d.s} C:${d.c.slice(0,100)}${d.tone ? " Tone:"+d.tone.slice(0,60) : ""}`;
 
-// ── PROMPTS ───────────────────────────────────────────────────────────────────
+// ── 2-CALL PROMPTS ────────────────────────────────────────────────────────────
+// Call 0: World Rules + Characters (~900 tokens out, 1 API call)
+// Call 1: Conflict + Arc + Visual DNA (~1100 tokens out, 1 API call)
+// Total: 2 calls vs old 5 — 60% fewer rate limit hits
 const PROMPTS = {
-  world: d => `${seed(d)}
+  // Call 0: World + Characters in one request
+  call0: d => `${seed(d)}
 
-Write the WORLD RULES section of this story bible.
+Write TWO sections of a story bible. Label each clearly.
+
+=== SECTION 1: WORLD RULES ===
 
 **SETTING OVERVIEW:**
-3 sentences. Make the reader smell it, feel the temperature, sense who is unwelcome here. Zero tourism language.
+3 sentences. Smell it, feel the temperature, sense who is unwelcome. Zero tourism language.
 
 **THE THREE LAWS OF THIS WORLD:**
-3 rules that govern this world. Each must contain an internal contradiction — the world's own logic must betray itself. Not magic systems. The uncomfortable truths everyone lives around.
+3 rules. Each must contain an internal contradiction — the world's logic must betray itself.
 
 **POWER ANATOMY:**
-Who holds power? What do they sacrifice to keep it? What do they pretend not to know?
+Who holds power? What do they sacrifice? What do they pretend not to know?
 
 **THE WOUND BENEATH THE SURFACE:**
-What happened here that no one discusses? What is the collective lie this society tells itself every morning?`,
+What happened that no one discusses? What lie does this society tell itself every morning?
 
-  chars: d => `${seed(d)}
-
-Write the CHARACTERS section of this story bible.
+=== SECTION 2: CHARACTERS ===
 
 **PROTAGONIST:**
-Name, role in this world, what they want most, the lie they tell themselves about why they want it, their defining flaw (not a quirk — a flaw that will cost them something real), one physical detail that reveals character.
+Name, role, what they want, the lie they tell themselves about why they want it, their real flaw (not a quirk — one that will cost them something), one physical detail that reveals character.
 
 **ANTAGONIST:**
-Name, role, core belief — and critically, why they are RIGHT from within their own logic. Must be someone a reader could follow in a different story.
+Name, role, core belief — and why they are RIGHT from within their own logic.
 
 **THE FOIL:**
-One character who embodies what the protagonist becomes if they succeed or fail completely. Name, function, one line of dialogue that defines them.
+Name, function, one line of dialogue that defines them entirely.
 
 **THE WILDCARD:**
-One character whose allegiance is unclear — even to themselves. Name, surface role, what they are actually searching for.
+Name, surface role, what they are actually searching for.
 
 **THE CENTRAL DYNAMIC:**
-The emotional and philosophical tension between protagonist and antagonist. One precise sentence. Not a plot summary.`,
+The tension between protagonist and antagonist. One precise sentence.`,
 
-  conflict: d => `${seed(d)}
+  // Call 1: Conflict + Arc + Visual in one request
+  call1: d => `${seed(d)}
 
-Write the CONFLICT AND THEMES section of this story bible.
+Write THREE sections of a story bible. Label each clearly.
+
+=== SECTION 3: CONFLICT & THEMES ===
 
 **THE ENGINE:**
-The external plot mechanism in one sharp sentence. What situation forces movement?
+External plot mechanism in one sharp sentence.
 
 **THE REAL FIGHT:**
-The internal conflict the protagonist is actually having — which the external plot merely illuminates. Must feel uncomfortably personal.
+The internal conflict the external plot illuminates. Uncomfortably personal.
 
 **CORE THEME:**
-The single question this story keeps asking but refuses to answer. Phrase as a question. A reasonable person must be able to answer it either way.
+The question this story asks but refuses to answer. Phrase as a question.
 
 **SHADOW THEMES:**
-Two secondary themes that complicate (not reinforce) the core theme.
+Two themes that complicate (not reinforce) the core theme.
 
 **THE LINE NO ONE SAYS:**
-The one line of dialogue that could end the story immediately — if any character were honest enough to speak it.`,
+The dialogue that could end the story if anyone were honest enough to say it.
 
-  arc: d => `${seed(d)}
-
-Write the STORY ARC section for a comic series or serialised narrative.
+=== SECTION 4: STORY ARC ===
 
 **ACT ONE — THE RUPTURE:**
-What is the protagonist's false equilibrium? What specific event shatters it — and why is this the worst possible moment?
+False equilibrium + what shatters it + why this is the worst moment.
 
 **ACT TWO — THE DESCENT:**
-The protagonist tries old strategies; they fail. What do they lose? What were they wrong about?
+Old strategies fail. What is lost. What was wrong.
 
 **ACT THREE — THE CRUCIBLE:**
-What must the protagonist destroy in themselves to reach the final confrontation? What is the cost of winning?
+What the protagonist must destroy in themselves. The cost of winning.
 
 **THE SERIES SPINE:**
-The larger question one story cannot contain. What must readers wait seasons to understand?
+The question one story cannot contain.
 
 **ENDING REGISTER:**
-Tragedy, pyrrhic victory, dark triumph, or something that refuses categorisation? One honest sentence.`,
+Tragedy, pyrrhic victory, dark triumph, or something that refuses categorisation. One honest sentence.
 
-  visual: d => `${seed(d)}
-
-Write the VISUAL AND TONE DNA section — what an artist reads before drawing a single line.
+=== SECTION 5: VISUAL & TONE DNA ===
 
 **COLOUR PALETTE:**
-4 colours. Format: [Name] — [what it means in THIS world, not in general].
+4 colours. Format: [Name] — [meaning in THIS world].
 
 **PANEL RHYTHM:**
-Dense/claustrophobic (6-8 panels, no air) or sparse/cinematic (2-3 panels, silence as tool)? When does the rhythm break — and what does that signal?
+Dense/claustrophobic or sparse/cinematic? When does it break and what does that signal?
 
 **THE RECURRING MOTIF:**
-One visual symbol that appears throughout, transformed by context each time. What does it mean at the start? What has it become by the end?
+One visual symbol transformed by context. Start meaning vs end meaning.
 
 **LIGHT PHILOSOPHY:**
-Not just "dark". The specific quality: sodium orange of wet asphalt, blue-white of a screen in a dark room, afternoon light through dirty glass.
+Not "dark" — the specific quality. Sodium orange of wet asphalt. Blue-white of a screen in a dark room.
 
 **THREE REFERENCE TOUCHSTONES:**
-Three works (film, comic, painting) this story is in conversation with. One sentence each on what specific quality it shares — not plot, feeling.
+Three works this story is in conversation with. One sentence each on feeling, not plot.
 
 **ARTIST BRIEF:**
-One paragraph. Include: what to AVOID drawing, the texture of surfaces, the one image that if drawn correctly makes this world instantly recognisable.`,
+One paragraph: what to AVOID, texture of surfaces, the one image that makes this world instantly recognisable.`,
 };
 
 // ── STYLES ────────────────────────────────────────────────────────────────────
@@ -268,6 +365,7 @@ const STYLES = `
   .sbb-btn-gen:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
   .sbb-btn-spin { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.25); border-top-color: #fff; border-radius: 50%; animation: sbb-spin 0.7s linear infinite; }
   .sbb-token-note { font-size: 11px; color: #7a7060; font-style: italic; text-align: center; margin-bottom: 16px; }
+  .sbb-test-banner { background: rgba(201,160,48,0.12); border: 1px solid rgba(201,160,48,0.4); border-radius: 6px; padding: 8px 14px; margin-bottom: 14px; font-size: 12px; color: #c9a030; font-style: italic; text-align: center; }
 
   /* PROGRESS */
   .sbb-track { display: flex; gap: 3px; margin-bottom: 8px; }
@@ -346,8 +444,32 @@ function saveHistory(d, res) {
   try { localStorage.setItem(LS_HIST, JSON.stringify(hist)); } catch {}
 }
 
+// ── SPLIT SECTIONS ───────────────────────────────────────────────────────────
+// Splits a combined API response into individual sections by marker
+function splitSections(text, markers) {
+  const results = [];
+  for (let i = 0; i < markers.length; i++) {
+    const start = text.indexOf("=== " + markers[i]);
+    const end   = i + 1 < markers.length
+      ? text.indexOf("=== " + markers[i + 1])
+      : text.length;
+    if (start === -1) { results.push(""); continue; }
+    // Strip the section header line itself
+    const content = text.slice(start, end === -1 ? text.length : end);
+    const firstNewline = content.indexOf("
+");
+    results.push(firstNewline === -1 ? content : content.slice(firstNewline + 1).trim());
+  }
+  return results;
+}
+
 // ── GEMINI CALL ───────────────────────────────────────────────────────────────
-async function callGemini(prompt, key) {
+async function callGemini(prompt, key, callKey) {
+  // TEST MODE — returns mock data instantly, no API call made
+  if (TEST_MODE) {
+    await new Promise(r => setTimeout(r, 1200));
+    return MOCK[callKey] || "Mock response for " + callKey;
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   let res;
@@ -359,7 +481,7 @@ async function callGemini(prompt, key) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYS }] },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.88, topP: 0.93, maxOutputTokens: 500 },
+        generationConfig: { temperature: 0.75, topP: 0.92, maxOutputTokens: 1100 },
         safetySettings: [
           { category: "HARM_CATEGORY_HARASSMENT",        threshold: "BLOCK_ONLY_HIGH" },
           { category: "HARM_CATEGORY_HATE_SPEECH",       threshold: "BLOCK_ONLY_HIGH" },
@@ -416,7 +538,7 @@ export default function App() {
   const [running,    setRunning]    = useState(false);
   const [stepIdx,    setStepIdx]    = useState(-1);
   const [stepMsg,    setStepMsg]    = useState("");
-  const [pills,      setPills]      = useState(Array(5).fill("idle")); // idle | active | done
+  const [pills,      setPills]      = useState(Array(2).fill("idle")); // 2 calls
   const [results,    setResults]    = useState({});
   const [currentD,   setCurrentD]   = useState(null);
   const [error,      setError]      = useState("");
@@ -461,6 +583,7 @@ export default function App() {
     if (!setting.trim()) return "Setting is required.";
     if (!concept.trim()) return "Core concept is required.";
     if (!tone.trim())    return "Tone / Influences is required — name a real work.";
+    if (TEST_MODE)       return null; // skip key check in test mode
     const k = localStorage.getItem(LS_KEY) || keyInput.trim();
     if (!k)              return "Save your Gemini API key first.";
     if (!k.startsWith("AIza")) return "Invalid API key format.";
@@ -468,20 +591,19 @@ export default function App() {
   }
 
   // ── STEP RUNNER ─────────────────────────────────────────────────────────────
-  const runStep = useCallback(async (idx, prompt, key, localResults, setLocalResults) => {
+  const runCall = useCallback(async (callIdx, prompt, key) => {
     const maxRetries = 2;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        setStepIdx(idx);
-        setStepMsg(STEPS[idx].msg);
-        setPills(p => p.map((v,i) => i === idx ? "active" : v));
-        const out = await callGemini(prompt, key);
-        setPills(p => p.map((v,i) => i === idx ? "done" : v));
+        setStepMsg(CALLS[callIdx].msg);
+        setPills(p => p.map((v,i) => i === callIdx ? "active" : v));
+        const out = await callGemini(prompt, key, "call" + callIdx);
+        setPills(p => p.map((v,i) => i === callIdx ? "done" : v));
         return out;
       } catch (e) {
         if (attempt === maxRetries) throw e;
-        setStepMsg(e.message.includes("timed out") ? e.message : `Step ${idx + 1}: retrying...`);
-        await new Promise(r => setTimeout(r, attempt === 0 ? 2500 : 6000));
+        setStepMsg(e.message.includes("timed out") ? e.message : "Retrying... (" + (attempt+1) + "/2)");
+        await new Promise(r => setTimeout(r, attempt === 0 ? 3000 : 8000));
       }
     }
   }, []);
@@ -499,18 +621,27 @@ export default function App() {
     setError("");
     setShowOutput(false);
     setResults({});
-    setPills(Array(5).fill("idle"));
+    setPills(Array(2).fill("idle"));
 
     setTimeout(() => progressRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
 
     try {
       const res = {};
-      const pause = () => new Promise(r => setTimeout(r, 1000));
-      res[0] = await runStep(0, PROMPTS.world(d),    key); await pause();
-      res[1] = await runStep(1, PROMPTS.chars(d),    key); await pause();
-      res[2] = await runStep(2, PROMPTS.conflict(d), key); await pause();
-      res[3] = await runStep(3, PROMPTS.arc(d),      key); await pause();
-      res[4] = await runStep(4, PROMPTS.visual(d),   key);
+      // Call 0: World + Characters
+      const raw0 = await runCall(0, PROMPTS.call0(d), key);
+      const split0 = splitSections(raw0, ["SECTION 1", "SECTION 2"]);
+      res[0] = split0[0] || raw0;
+      res[1] = split0[1] || "";
+
+      // 2s pause between calls — avoids burst throttling on free tier
+      await new Promise(r => setTimeout(r, 2000));
+
+      // Call 1: Conflict + Arc + Visual
+      const raw1 = await runCall(1, PROMPTS.call1(d), key);
+      const split1 = splitSections(raw1, ["SECTION 3", "SECTION 4", "SECTION 5"]);
+      res[2] = split1[0] || raw1;
+      res[3] = split1[1] || "";
+      res[4] = split1[2] || "";
 
       setResults(res);
       setCurrentD(d);
@@ -531,27 +662,39 @@ export default function App() {
   async function regenStep(idx) {
     if (running || !currentD) return;
     const key = localStorage.getItem(LS_KEY) || keyInput.trim();
+    // Determine which call owns this section
+    const callIdx = idx <= 1 ? 0 : 1;
     setRunning(true);
     setError("");
     setRegenning(r => ({ ...r, [idx]: true }));
-    setPills(p => p.map((v,i) => i === idx ? "idle" : v));
+    setPills(p => p.map((v,i) => i === callIdx ? "idle" : v));
 
     try {
-      const pk  = STEPS[idx].pk;
-      const out = await runStep(idx, PROMPTS[pk](currentD), key);
+      const raw = await runCall(callIdx, PROMPTS["call" + callIdx](currentD), key);
+      const markers = callIdx === 0
+        ? ["SECTION 1", "SECTION 2"]
+        : ["SECTION 3", "SECTION 4", "SECTION 5"];
+      const split = splitSections(raw, markers);
       setResults(r => {
-        const updated = { ...r, [idx]: out };
+        const updated = { ...r };
+        if (callIdx === 0) {
+          updated[0] = split[0] || raw;
+          updated[1] = split[1] || "";
+        } else {
+          updated[2] = split[0] || raw;
+          updated[3] = split[1] || "";
+          updated[4] = split[2] || "";
+        }
         saveHistory(currentD, updated);
         setHistory(getHistory());
         return updated;
       });
     } catch (e) {
       setError(e.message);
-      setPills(p => p.map((v,i) => i === idx ? "done" : v));
+      setPills(p => p.map((v,i) => i === callIdx ? "done" : v));
     } finally {
       setRunning(false);
       setRegenning(r => ({ ...r, [idx]: false }));
-      setStepIdx(-1);
     }
   }
 
@@ -566,7 +709,7 @@ export default function App() {
     setResults(h.results);
     setCurrentD(h.input);
     setShowOutput(true);
-    setPills(Array(5).fill("done"));
+    setPills(Array(2).fill("done"));
     setTimeout(() => outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
   }
 
@@ -761,7 +904,12 @@ export default function App() {
             {running && <div className="sbb-btn-spin" />}
             <span>{running ? "Forging..." : "✦ Forge the Bible ✦"}</span>
           </button>
-          <div className="sbb-token-note">Gemini 2.0 Flash · ~2,500 tokens per run · Janardhan Labs</div>
+          {TEST_MODE && (
+            <div className="sbb-test-banner">
+              ⚗ Test Mode — mock responses only. Set TEST_MODE = false before deploying.
+            </div>
+          )}
+          <div className="sbb-token-note">{TEST_MODE ? "No API key needed in test mode" : "Gemini 2.0 Flash Lite · ~2,500 tokens per run · Janardhan Labs"}</div>
 
           {/* PROGRESS */}
           {running && (
@@ -770,8 +918,8 @@ export default function App() {
                 {pills.map((p, i) => <div key={i} className={`sbb-pill ${p}`} />)}
               </div>
               <div className="sbb-step-labels">
-                {STEPS.map((s, i) => (
-                  <div key={i} className={`sbb-step-lbl ${pills[i]}`}>{s.label}</div>
+                {CALLS.map((c, i) => (
+                  <div key={i} className={`sbb-step-lbl ${pills[i]}`}>{c.label}</div>
                 ))}
               </div>
               <div className="sbb-step-disp">
@@ -795,7 +943,7 @@ export default function App() {
                 <div className="sbb-out-actions">
                   <button className="sbb-btn-act" onClick={copyAll}>Copy</button>
                   <button className="sbb-btn-act" onClick={downloadTxt}>Save</button>
-                  <button className="sbb-btn-act danger" onClick={() => { setShowOutput(false); setResults({}); setCurrentD(null); setPills(Array(5).fill("idle")); window.scrollTo({top:0,behavior:"smooth"}); }}>New</button>
+                  <button className="sbb-btn-act danger" onClick={() => { setShowOutput(false); setResults({}); setCurrentD(null); setPills(Array(2).fill("idle")); window.scrollTo({top:0,behavior:"smooth"}); }}>New</button>
                 </div>
               </div>
 
