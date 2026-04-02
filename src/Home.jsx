@@ -18,6 +18,7 @@ const APPS = [
   { id:"contract-scan",       name:"ContractScan",       tagline:"Know what you're signing before you sign it.", path:"/contract-scan",       icon:"📋", tag:"Legal" },
   { id:"skinstack",           name:"SkinStack",          tagline:"Your skin, your stack, no guesswork",          path:"/skinstack",           icon:"✨", tag:"Personal" },
   { id:"story-bible", name:"StoryBibleBuilder", tagline:"Five sacred steps. One complete world.", path:"/story-bible", icon:"📖", tag:"Writing" },
+  { id:"pm-studio", name:"PM Studio", tagline:"17 tools for every PM workflow", path:"/pm-studio", icon:"⚡", tag:"Product" },
 ];
 
 const TAG_COLORS = {
