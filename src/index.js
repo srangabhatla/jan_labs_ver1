@@ -14,10 +14,8 @@ const SprintMind          = lazy(() => import("./apps/sprint-mind/App"));
 const ContractScan        = lazy(() => import("./apps/contract-scan/App"));
 const SkinStack           = lazy(() => import("./apps/skinstack/App"));
 const StoryBible          = lazy(() => import("./apps/story-bible/App"));
+const PMStudio            = lazy(() => import("./apps/pm-studio/App"));
 const Home                = lazy(() => import("./Home"));
-const PMStudio = lazy(() => import("./apps/pm-studio/App"));
-// in ROUTES:
-"/pm-studio": <PMStudio />,
 
 // ── Fallback shown while lazy chunk loads ─────────────────────────────────
 function PageLoader() {
@@ -123,6 +121,7 @@ const ROUTES = {
   "/contract-scan":       <ContractScan />,
   "/skinstack":           <SkinStack />,
   "/story-bible":         <StoryBible />,
+  "/pm-studio":           <PMStudio />,
 };
 
 // ── Router ────────────────────────────────────────────────────────────────
