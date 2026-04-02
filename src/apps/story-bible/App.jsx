@@ -456,8 +456,7 @@ function splitSections(text, markers) {
     if (start === -1) { results.push(""); continue; }
     // Strip the section header line itself
     const content = text.slice(start, end === -1 ? text.length : end);
-    const firstNewline = content.indexOf("
-");
+    const firstNewline = content.indexOf("\n");
     results.push(firstNewline === -1 ? content : content.slice(firstNewline + 1).trim());
   }
   return results;
