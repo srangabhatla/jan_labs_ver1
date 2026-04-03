@@ -621,6 +621,7 @@ export default function App() {
     setShowOutput(false);
     setResults({});
     setPills(Array(2).fill("idle"));
+    setCurrentD(d); // Set before API calls — regenStep needs this immediately
 
     setTimeout(() => progressRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
 
@@ -643,7 +644,6 @@ export default function App() {
       res[4] = split1[2] || "";
 
       setResults(res);
-      setCurrentD(d);
       saveHistory(d, res);
       setHistory(getHistory());
       setShowOutput(true);
@@ -659,9 +659,12 @@ export default function App() {
 
   // ── REGEN SINGLE STEP ───────────────────────────────────────────────────────
   async function regenStep(idx) {
-    if (running || !currentD) return;
+    // Capture currentD synchronously at call time — avoids stale closure bug
+    const d = currentD;
+    if (running || !d) return;
     const key = localStorage.getItem(LS_KEY) || keyInput.trim();
-    // Determine which call owns this section
+    if (!TEST_MODE && !key) { setError("API key missing — tap Change to re-enter it."); return; }
+
     const callIdx = idx <= 1 ? 0 : 1;
     setRunning(true);
     setError("");
@@ -669,7 +672,8 @@ export default function App() {
     setPills(p => p.map((v,i) => i === callIdx ? "idle" : v));
 
     try {
-      const raw = await runCall(callIdx, PROMPTS["call" + callIdx](currentD), key);
+      const prompt = callIdx === 0 ? PROMPTS.call0(d) : PROMPTS.call1(d);
+      const raw = await runCall(callIdx, prompt, key);
       const markers = callIdx === 0
         ? ["SECTION 1", "SECTION 2"]
         : ["SECTION 3", "SECTION 4", "SECTION 5"];
@@ -684,7 +688,7 @@ export default function App() {
           updated[3] = split[1] || "";
           updated[4] = split[2] || "";
         }
-        saveHistory(currentD, updated);
+        saveHistory(d, updated);
         setHistory(getHistory());
         return updated;
       });
@@ -693,6 +697,7 @@ export default function App() {
       setPills(p => p.map((v,i) => i === callIdx ? "done" : v));
     } finally {
       setRunning(false);
+      setStepIdx(-1);
       setRegenning(r => ({ ...r, [idx]: false }));
     }
   }
