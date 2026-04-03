@@ -18,6 +18,11 @@ const TIMEOUT_MS   = 30000;
 // Every step returns mock output instantly. Flip to false before production.
 const TEST_MODE = false;
 
+// ── KEY HELPERS — never store or display the raw key ─────────────────────────
+const encodeKey = k => btoa(unescape(encodeURIComponent(k)));
+const decodeKey = s => { try { return decodeURIComponent(escape(atob(s))); } catch { return ""; } };
+const maskKey   = k => k ? "AIza" + "●".repeat(8) + "…" + k.slice(-3) : "";
+
 const MOCK = {
   call0: `=== SECTION 1: WORLD RULES ===
 
@@ -570,8 +575,8 @@ async function callGemini(prompt, key, callKey) {
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export default function App() {
   // Key state
-  const [apiKey,      setApiKey]      = useState(() => localStorage.getItem(LS_KEY) || "");
-  const [keyInput,    setKeyInput]    = useState(() => localStorage.getItem(LS_KEY) || "");
+  const [apiKey,      setApiKey]      = useState(() => maskKey(decodeKey(localStorage.getItem(LS_KEY) || "")));
+  const [keyInput,    setKeyInput]    = useState("");
   const [keyVisible,  setKeyVisible]  = useState(false);
   const [keyStatus,   setKeyStatus]   = useState({ msg: "", ok: true });
   const [keyActive,   setKeyActive]   = useState(() => !!localStorage.getItem(LS_KEY));
@@ -610,12 +615,13 @@ export default function App() {
   // ── KEY SAVE ────────────────────────────────────────────────────────────────
   function handleSaveKey() {
     const k = keyInput.trim();
-    if (!k)                   return setKeyStatus({ msg: "Paste your key first.", ok: false });
+    if (!k)                    return setKeyStatus({ msg: "Paste your key first.", ok: false });
     if (!k.startsWith("AIza")) return setKeyStatus({ msg: 'Key should start with "AIza" — copy it again.', ok: false });
-    if (k.length < 30)         return setKeyStatus({ msg: "Key looks too short — try again.", ok: false });
+    if (k.length < 30)          return setKeyStatus({ msg: "Key looks too short — try again.", ok: false });
     const isNew = !localStorage.getItem(LS_KEY);
-    localStorage.setItem(LS_KEY, k);
-    setApiKey(k);
+    localStorage.setItem(LS_KEY, encodeKey(k));   // encoded — never plain text
+    setApiKey(maskKey(k));                         // display mask only — never raw key in state
+    setKeyInput("");                               // clear input immediately
     setKeyActive(true);
     setKeyStatus({ msg: "Key saved ✦", ok: true });
     if (isNew) setShowKeyWarn(true);
@@ -623,6 +629,7 @@ export default function App() {
 
   function handleChangeKey() {
     setKeyActive(false);
+    setKeyInput("");
     setKeyStatus({ msg: "", ok: true });
     setShowKeyWarn(false);
   }
@@ -635,7 +642,7 @@ export default function App() {
     if (!concept.trim()) return "Core concept is required.";
     if (!tone.trim())    return "Tone / Influences is required — name a real work.";
     if (TEST_MODE)       return null; // skip key check in test mode
-    const k = localStorage.getItem(LS_KEY) || keyInput.trim();
+    const k = decodeKey(localStorage.getItem(LS_KEY) || "") || keyInput.trim();
     if (!k)              return "Save your Gemini API key first.";
     if (!k.startsWith("AIza")) return "Invalid API key format.";
     return null;
@@ -666,7 +673,7 @@ export default function App() {
     if (running) return;
 
     const d = { t: title.trim(), g: genre, p: prot.trim(), s: setting.trim(), c: concept.trim(), tone: tone.trim() };
-    const key = localStorage.getItem(LS_KEY) || keyInput.trim();
+    const key = decodeKey(localStorage.getItem(LS_KEY) || "") || keyInput.trim();
 
     setRunning(true);
     setError("");
@@ -713,7 +720,7 @@ export default function App() {
   async function regenStep(idx) {
     const d = currentD;
     if (running || !d) return;
-    const key = localStorage.getItem(LS_KEY) || keyInput.trim();
+    const key = decodeKey(localStorage.getItem(LS_KEY) || "") || keyInput.trim();
     if (!TEST_MODE && !key) { setError("API key missing — tap Change to re-enter it."); return; }
 
     setRunning(true);
@@ -871,7 +878,7 @@ export default function App() {
               <span className="sbb-banner-icon">✦</span>
               <div className="sbb-banner-text">
                 Gemini key active<br />
-                <span>{apiKey.slice(0,8)}....{apiKey.slice(-4)}</span>
+                <span>{"••••••••••••••••...."+apiKey.slice(-4)}</span>
               </div>
               <button className="sbb-btn-change" onClick={handleChangeKey}>Change</button>
             </div>
