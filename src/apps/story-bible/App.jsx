@@ -16,7 +16,7 @@ const TIMEOUT_MS   = 30000;
 // ── TEST MODE ─────────────────────────────────────────────────────────────────
 // Set to true to run the full UI flow without any API key.
 // Every step returns mock output instantly. Flip to false before production.
-const TEST_MODE = true;
+const TEST_MODE = false;
 
 const MOCK = {
   call0: `=== SECTION 1: WORLD RULES ===
@@ -445,21 +445,61 @@ function saveHistory(d, res) {
 }
 
 // ── SPLIT SECTIONS ───────────────────────────────────────────────────────────
-// Splits a combined API response into individual sections by marker
+// Splits combined API response into sections.
+// Strategy: try marker-based split first (=== SECTION X ===),
+// fall back to splitting on the first known label of each section group.
 function splitSections(text, markers) {
-  const results = [];
+  // Try marker-based split
+  const markerResults = [];
+  let markerFound = false;
   for (let i = 0; i < markers.length; i++) {
     const start = text.indexOf("=== " + markers[i]);
-    const end   = i + 1 < markers.length
+    if (start !== -1) markerFound = true;
+    const end = i + 1 < markers.length
       ? text.indexOf("=== " + markers[i + 1])
       : text.length;
-    if (start === -1) { results.push(""); continue; }
-    // Strip the section header line itself
+    if (start === -1) { markerResults.push(""); continue; }
     const content = text.slice(start, end === -1 ? text.length : end);
     const firstNewline = content.indexOf("\n");
-    results.push(firstNewline === -1 ? content : content.slice(firstNewline + 1).trim());
+    markerResults.push(firstNewline === -1 ? content : content.slice(firstNewline + 1).trim());
   }
-  return results;
+  if (markerFound && markerResults.some(r => r.length > 40)) return markerResults;
+
+  // Fallback: split on first bold label of each section
+  // call0 sections start with: SETTING OVERVIEW, PROTAGONIST
+  // call1 sections start with: THE ENGINE, ACT ONE, COLOUR PALETTE
+  const SECTION_ANCHORS = {
+    "SECTION 1": ["**SETTING OVERVIEW", "**Setting Overview"],
+    "SECTION 2": ["**PROTAGONIST", "**Protagonist"],
+    "SECTION 3": ["**THE ENGINE", "**The Engine"],
+    "SECTION 4": ["**ACT ONE", "**Act One"],
+    "SECTION 5": ["**COLOUR PALETTE", "**Colour Palette", "**COLOR PALETTE"],
+  };
+
+  const anchorPositions = markers.map(m => {
+    const anchors = SECTION_ANCHORS[m] || [];
+    for (const anchor of anchors) {
+      const pos = text.indexOf(anchor);
+      if (pos !== -1) return pos;
+    }
+    return -1;
+  });
+
+  const fallbackResults = [];
+  for (let i = 0; i < markers.length; i++) {
+    const start = anchorPositions[i];
+    if (start === -1) { fallbackResults.push(""); continue; }
+    // Find the next section's start
+    let end = text.length;
+    for (let j = i + 1; j < markers.length; j++) {
+      if (anchorPositions[j] !== -1) { end = anchorPositions[j]; break; }
+    }
+    fallbackResults.push(text.slice(start, end).trim());
+  }
+  if (fallbackResults.some(r => r.length > 40)) return fallbackResults;
+
+  // Last resort: return full text in first slot, empty in rest
+  return markers.map((_, i) => i === 0 ? text.trim() : "");
 }
 
 // ── GEMINI CALL ───────────────────────────────────────────────────────────────
@@ -681,12 +721,22 @@ export default function App() {
       setResults(r => {
         const updated = { ...r };
         if (callIdx === 0) {
-          updated[0] = split[0] || raw;
-          updated[1] = split[1] || "";
+          if (split[0] && split[0].length > 40) updated[0] = split[0];
+          if (split[1] && split[1].length > 40) updated[1] = split[1];
+          // If split failed entirely, put full response in both visible slots
+          if (!split[0] || split[0].length <= 40) {
+            updated[0] = raw;
+            updated[1] = raw;
+          }
         } else {
-          updated[2] = split[0] || raw;
-          updated[3] = split[1] || "";
-          updated[4] = split[2] || "";
+          if (split[0] && split[0].length > 40) updated[2] = split[0];
+          if (split[1] && split[1].length > 40) updated[3] = split[1];
+          if (split[2] && split[2].length > 40) updated[4] = split[2];
+          if (!split[0] || split[0].length <= 40) {
+            updated[2] = raw;
+            updated[3] = "";
+            updated[4] = "";
+          }
         }
         saveHistory(d, updated);
         setHistory(getHistory());
