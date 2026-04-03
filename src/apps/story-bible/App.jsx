@@ -113,7 +113,19 @@ Late afternoon Kerala light just before the rains — golden and slightly wrong,
 Draw Kerala without its postcard self. No backwater romance, no lush tourism green. Draw the mildew on old house walls. The specific orange of a government school corridor. Avoid: boats at sunset, temple festivals, coconut palms as beauty. The one image: Arun at the river's edge, facing away, water the same colour as sky, no horizon visible.`,
 };
 
-// ── STEPS (5 display cards, 2 API calls) ─────────────────────────────────────
+// ── REDO PROMPTS — one per section, ~400 tokens each ─────────────────────────
+// Used only for Redo. Single section, single call, ~half the tokens of a full call.
+const REDO = {
+  0: d => `${seed(d)}\n\nRewrite ONLY the WORLD RULES section of this story bible.\n\n**SETTING OVERVIEW:**\n3 sentences. Smell it, feel the temperature, sense who is unwelcome. Zero tourism language.\n\n**THE THREE LAWS OF THIS WORLD:**\n3 rules. Each must contain an internal contradiction — the world's logic must betray itself.\n\n**POWER ANATOMY:**\nWho holds power? What do they sacrifice? What do they pretend not to know?\n\n**THE WOUND BENEATH THE SURFACE:**\nWhat happened that no one discusses? What lie does this society tell itself every morning?`,
+
+  1: d => `${seed(d)}\n\nRewrite ONLY the CHARACTERS section of this story bible.\n\n**PROTAGONIST:**\nName, role, what they want, the lie they tell themselves about why, their real flaw, one physical detail that reveals character.\n\n**ANTAGONIST:**\nName, role, core belief — and why they are RIGHT from within their own logic.\n\n**THE FOIL:**\nName, function, one line of dialogue that defines them entirely.\n\n**THE WILDCARD:**\nName, surface role, what they are actually searching for.\n\n**THE CENTRAL DYNAMIC:**\nThe tension between protagonist and antagonist. One precise sentence.`,
+
+  2: d => `${seed(d)}\n\nRewrite ONLY the CONFLICT AND THEMES section of this story bible.\n\n**THE ENGINE:**\nExternal plot mechanism in one sharp sentence.\n\n**THE REAL FIGHT:**\nThe internal conflict the external plot illuminates. Uncomfortably personal.\n\n**CORE THEME:**\nThe question this story asks but refuses to answer. Phrase as a question.\n\n**SHADOW THEMES:**\nTwo themes that complicate (not reinforce) the core theme.\n\n**THE LINE NO ONE SAYS:**\nThe dialogue that could end the story if anyone were honest enough to say it.`,
+
+  3: d => `${seed(d)}\n\nRewrite ONLY the STORY ARC section of this story bible.\n\n**ACT ONE — THE RUPTURE:**\nFalse equilibrium + what shatters it + why this is the worst moment.\n\n**ACT TWO — THE DESCENT:**\nOld strategies fail. What is lost. What was wrong.\n\n**ACT THREE — THE CRUCIBLE:**\nWhat the protagonist must destroy in themselves. The cost of winning.\n\n**THE SERIES SPINE:**\nThe question one story cannot contain.\n\n**ENDING REGISTER:**\nTragedy, pyrrhic victory, dark triumph, or something that refuses categorisation. One honest sentence.`,
+
+  4: d => `${seed(d)}\n\nRewrite ONLY the VISUAL AND TONE DNA section of this story bible.\n\n**COLOUR PALETTE:**\n4 colours. Format: [Name] — [meaning in THIS world].\n\n**PANEL RHYTHM:**\nDense/claustrophobic or sparse/cinematic? When does it break and what does that signal?\n\n**THE RECURRING MOTIF:**\nOne visual symbol transformed by context. Start meaning vs end meaning.\n\n**LIGHT PHILOSOPHY:**\nNot "dark" — the specific quality. Sodium orange of wet asphalt. Blue-white of a screen in a dark room.\n\n**THREE REFERENCE TOUCHSTONES:**\nThree works this story is in conversation with. One sentence each on feeling, not plot.\n\n**ARTIST BRIEF:**\nOne paragraph: what to AVOID, texture of surfaces, the one image that makes this world instantly recognisable.`,
+};
 const STEPS = [
   { id:0, icon:"◈", title:"World Rules"       },
   { id:1, icon:"◉", title:"Characters"        },
@@ -699,45 +711,25 @@ export default function App() {
 
   // ── REGEN SINGLE STEP ───────────────────────────────────────────────────────
   async function regenStep(idx) {
-    // Capture currentD synchronously at call time — avoids stale closure bug
     const d = currentD;
     if (running || !d) return;
     const key = localStorage.getItem(LS_KEY) || keyInput.trim();
     if (!TEST_MODE && !key) { setError("API key missing — tap Change to re-enter it."); return; }
 
-    const callIdx = idx <= 1 ? 0 : 1;
     setRunning(true);
     setError("");
     setRegenning(r => ({ ...r, [idx]: true }));
-    setPills(p => p.map((v,i) => i === callIdx ? "idle" : v));
+    // Show the one pill that corresponds to this section
+    const callIdx = idx <= 1 ? 0 : 1;
+    setPills(p => p.map((v,i) => i === callIdx ? "active" : v));
+    setStepMsg(STEPS[idx].title + "...");
 
     try {
-      const prompt = callIdx === 0 ? PROMPTS.call0(d) : PROMPTS.call1(d);
-      const raw = await runCall(callIdx, prompt, key);
-      const markers = callIdx === 0
-        ? ["SECTION 1", "SECTION 2"]
-        : ["SECTION 3", "SECTION 4", "SECTION 5"];
-      const split = splitSections(raw, markers);
+      // Single section call — uses REDO prompt, not the combined call0/call1
+      const raw = await callGemini(REDO[idx](d), key, "redo" + idx);
+      setPills(p => p.map((v,i) => i === callIdx ? "done" : v));
       setResults(r => {
-        const updated = { ...r };
-        if (callIdx === 0) {
-          if (split[0] && split[0].length > 40) updated[0] = split[0];
-          if (split[1] && split[1].length > 40) updated[1] = split[1];
-          // If split failed entirely, put full response in both visible slots
-          if (!split[0] || split[0].length <= 40) {
-            updated[0] = raw;
-            updated[1] = raw;
-          }
-        } else {
-          if (split[0] && split[0].length > 40) updated[2] = split[0];
-          if (split[1] && split[1].length > 40) updated[3] = split[1];
-          if (split[2] && split[2].length > 40) updated[4] = split[2];
-          if (!split[0] || split[0].length <= 40) {
-            updated[2] = raw;
-            updated[3] = "";
-            updated[4] = "";
-          }
-        }
+        const updated = { ...r, [idx]: raw.trim() };
         saveHistory(d, updated);
         setHistory(getHistory());
         return updated;
@@ -963,7 +955,7 @@ export default function App() {
               ⚗ Test Mode — mock responses only. Set TEST_MODE = false before deploying.
             </div>
           )}
-          <div className="sbb-token-note">{TEST_MODE ? "No API key needed in test mode" : "Gemini 2.0 Flash Lite · ~2,500 tokens per run · Janardhan Labs"}</div>
+          <div className="sbb-token-note">{TEST_MODE ? "No API key needed in test mode" : "Gemini 2.0 Flash Lite · ~2,000 tokens/run · ~400 tokens/redo · Janardhan Labs"}</div>
 
           {/* PROGRESS */}
           {running && (
