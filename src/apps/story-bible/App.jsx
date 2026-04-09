@@ -7,7 +7,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const MODELS = [
-  "gemini-1.5-flash",
+ "gemini-2.5-flash-lite",
+ "gemini-2.5-flash",
+ "gemini-2.0-flash-lite"
 ];
 
 
@@ -547,68 +549,62 @@ async function warmupGemini(key){
 
 async function callGemini(prompt, apiKey){
 
-  for(const model of MODELS){
+ for(const model of MODELS){
 
-    try{
+  try{
 
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method:"POST",
+   const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
+    {
+     method:"POST",
 
-          headers:{
-            "Content-Type":"application/json"
-          },
+     headers:{
+      "Content-Type":"application/json"
+     },
 
-          body: JSON.stringify({
+     body: JSON.stringify({
 
-            contents:[
-              {
-                role:"user",
-                parts:[
-                  { text: prompt }
-                ]
-              }
-            ],
+      contents:[
+       {
+        parts:[
+         { text: prompt }
+        ]
+       }
+      ]
 
-            generationConfig:{
-              temperature:0.7,
-              maxOutputTokens:600
-            }
-
-          })
-
-        }
-      );
-
-      if(!res.ok){
-
-        const err = await res.text();
-
-        console.log(model,"failed:",err);
-
-        continue;
-
-      }
-
-      const data = await res.json();
-
-      const text =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if(text) return text;
+     })
 
     }
+   );
 
-    catch(e){
+   if(!res.ok){
 
-      console.log(model,"error",e);
+    const txt = await res.text();
 
-    }
+    console.log(model,"failed:",txt);
+
+    continue;
+
+   }
+
+   const data = await res.json();
+
+   const output =
+    data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+   if(output) return output;
 
   }
 
-  throw new Error("All Gemini models failed");
+  catch(e){
+
+   console.log("error:",model,e);
+
+  }
+
+ }
+
+ throw new Error("All Gemini models failed");
 
 }
 
