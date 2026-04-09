@@ -12,26 +12,6 @@ const MODELS = [
   "gemini-1.5-pro"
 ];
 
-const GEMINI_URL = (model, key) =>
-  `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
-const LS_KEY       = "sbb_key_v5";
-const LS_HIST      = "sbb_history_v5";
-const MAX_HIST     = 3;
-const TIMEOUT_MS   = 30000;
-async function warmupGemini(key){
-  try{
-    await fetch(GEMINI_URL(MODELS[0], key),{
-      method:"POST",
-      headers:{ "Content-Type":"application/json"},
-      body: JSON.stringify({
-        contents:[
-          { role:"user", parts:[{ text:"ping"}]}
-        ],
-        generationConfig:{ maxOutputTokens:5 }
-      })
-    })
-  }catch(e){}
-}
 
 
 // ── TEST MODE ─────────────────────────────────────────────────────────────────
