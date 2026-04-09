@@ -8,7 +8,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const MODELS = [
   "gemini-1.5-flash",
-  "gemini-1.5-pro"
 ];
 
 
