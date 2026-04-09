@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const MODEL        = "gemini-2.0-flash-lite";
+const MODEL        = "gemini-1.5-flash";
 const GEMINI_URL   = k => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${k}`;
 const LS_KEY       = "sbb_key_v5";
 const LS_HIST      = "sbb_history_v5";
@@ -537,7 +537,7 @@ async function callGemini(prompt, key, callKey) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYS }] },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.75, topP: 0.92, maxOutputTokens: 1100 },
+        generationConfig: { temperature: 0.75, topP: 0.92, maxOutputTokens: 800 },
         safetySettings: [
           { category: "HARM_CATEGORY_HARASSMENT",        threshold: "BLOCK_ONLY_HIGH" },
           { category: "HARM_CATEGORY_HATE_SPEECH",       threshold: "BLOCK_ONLY_HIGH" },
@@ -556,7 +556,7 @@ async function callGemini(prompt, key, callKey) {
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try { const j = await res.json(); msg = j?.error?.message || msg; } catch {}
-    if (res.status === 429) throw new Error("Gemini free tier limit hit. Wait 60 seconds and retry — or get a new key at aistudio.google.com/apikey if this keeps happening.");
+    if (res.status === 429) throw new Error("RATE_LIMIT_429");
     if (res.status === 403) throw new Error("API key invalid or expired. Tap Change to update it.");
     if (res.status === 400) throw new Error("Bad request: " + msg);
     throw new Error(msg);
@@ -650,18 +650,30 @@ export default function App() {
 
   // ── STEP RUNNER ─────────────────────────────────────────────────────────────
   const runCall = useCallback(async (callIdx, prompt, key) => {
-    const maxRetries = 2;
+    const maxRetries = 3;
+    // Warm UX messages for retries — never show "error" to the user
+    const retryMsgs = [
+      "Still working — Gemini is warming up...",
+      "Almost there — one more moment...",
+      "Hang tight, final attempt...",
+    ];
+    // Wait times for 429 (rate limit) vs other errors
+    const waits429 = [15000, 30000, 45000];
+    const waitsOther = [5000, 12000, 20000];
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        setStepMsg(CALLS[callIdx].msg);
+        setStepMsg(attempt === 0 ? CALLS[callIdx].msg : retryMsgs[attempt - 1]);
         setPills(p => p.map((v,i) => i === callIdx ? "active" : v));
         const out = await callGemini(prompt, key, "call" + callIdx);
         setPills(p => p.map((v,i) => i === callIdx ? "done" : v));
         return out;
       } catch (e) {
         if (attempt === maxRetries) throw e;
-        setStepMsg(e.message.includes("timed out") ? e.message : "Retrying... (" + (attempt+1) + "/2)");
-        await new Promise(r => setTimeout(r, attempt === 0 ? 3000 : 8000));
+        const is429 = e.message.includes("limit") || e.message.includes("429");
+        const wait  = is429 ? waits429[attempt] : waitsOther[attempt];
+        setStepMsg(retryMsgs[attempt]);
+        await new Promise(r => setTimeout(r, wait));
       }
     }
   }, []);
@@ -692,8 +704,8 @@ export default function App() {
       res[0] = split0[0] || raw0;
       res[1] = split0[1] || "";
 
-      // 2s pause between calls — avoids burst throttling on free tier
-      await new Promise(r => setTimeout(r, 2000));
+      // 10s pause between calls — gives free-tier quota window time to reset
+      await new Promise(r => setTimeout(r, 10000));
 
       // Call 1: Conflict + Arc + Visual
       const raw1 = await runCall(1, PROMPTS.call1(d), key);
@@ -723,32 +735,47 @@ export default function App() {
     const key = decodeKey(localStorage.getItem(LS_KEY) || "") || keyInput.trim();
     if (!TEST_MODE && !key) { setError("API key missing — tap Change to re-enter it."); return; }
 
+    const callIdx = idx <= 1 ? 0 : 1;
     setRunning(true);
     setError("");
     setRegenning(r => ({ ...r, [idx]: true }));
-    // Show the one pill that corresponds to this section
-    const callIdx = idx <= 1 ? 0 : 1;
     setPills(p => p.map((v,i) => i === callIdx ? "active" : v));
-    setStepMsg(STEPS[idx].title + "...");
+    setStepMsg("Rewriting " + STEPS[idx].title + "...");
 
-    try {
-      // Single section call — uses REDO prompt, not the combined call0/call1
-      const raw = await callGemini(REDO[idx](d), key, "redo" + idx);
-      setPills(p => p.map((v,i) => i === callIdx ? "done" : v));
-      setResults(r => {
-        const updated = { ...r, [idx]: raw.trim() };
-        saveHistory(d, updated);
-        setHistory(getHistory());
-        return updated;
-      });
-    } catch (e) {
-      setError(e.message);
-      setPills(p => p.map((v,i) => i === callIdx ? "done" : v));
-    } finally {
-      setRunning(false);
-      setStepIdx(-1);
-      setRegenning(r => ({ ...r, [idx]: false }));
+    const maxRetries = 3;
+    const retryMsgs  = ["Still working...", "Almost there...", "Final attempt..."];
+    const waits429   = [15000, 30000, 45000];
+    const waitsOther = [5000, 12000, 20000];
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) setStepMsg(retryMsgs[attempt - 1]);
+        const raw = await callGemini(REDO[idx](d), key, "redo" + idx);
+        setPills(p => p.map((v,i) => i === callIdx ? "done" : v));
+        setResults(r => {
+          const updated = { ...r, [idx]: raw.trim() };
+          saveHistory(d, updated);
+          setHistory(getHistory());
+          return updated;
+        });
+        break; // success — exit retry loop
+      } catch (e) {
+        if (attempt === maxRetries) {
+          // All retries exhausted — show error
+          setError(e.message);
+          setPills(p => p.map((v,i) => i === callIdx ? "done" : v));
+          break;
+        }
+        const is429 = e.message.includes("limit") || e.message.includes("429");
+        const wait  = is429 ? waits429[attempt] : waitsOther[attempt];
+        setStepMsg(retryMsgs[attempt]);
+        await new Promise(r => setTimeout(r, wait));
+      }
     }
+
+    setRunning(false);
+    setStepIdx(-1);
+    setRegenning(r => ({ ...r, [idx]: false }));
   }
 
   // ── LOAD HISTORY ────────────────────────────────────────────────────────────
@@ -868,7 +895,7 @@ export default function App() {
               {showKeyWarn && (
                 <div className="sbb-key-warn">Save your key somewhere safe — clearing browser storage will remove it.</div>
               )}
-              <div className="sbb-key-note">Your key stays in this browser only. Free tier: 1,500 runs/day.</div>
+              <div className="sbb-key-note">Your key stays in this browser only. Free tier: 1,500 runs/day.<br/>💡 First time? Run one test prompt in AI Studio first — it warms up your quota.</div>
             </div>
           )}
 
@@ -962,7 +989,7 @@ export default function App() {
               ⚗ Test Mode — mock responses only. Set TEST_MODE = false before deploying.
             </div>
           )}
-          <div className="sbb-token-note">{TEST_MODE ? "No API key needed in test mode" : "Gemini 2.0 Flash Lite · ~2,000 tokens/run · ~400 tokens/redo · Janardhan Labs"}</div>
+          <div className="sbb-token-note">{TEST_MODE ? "No API key needed in test mode" : "Gemini 1.5 Flash · ~1,600 tokens/run · ~400 tokens/redo · Janardhan Labs"}</div>
 
           {/* PROGRESS */}
           {running && (
@@ -983,7 +1010,13 @@ export default function App() {
           )}
 
           {/* ERROR */}
-          {error && <div className="sbb-error">! {error}</div>}
+          {error && (
+            <div className="sbb-error">
+              {error === "RATE_LIMIT_429"
+                ? "⏳ Gemini is warming up — all retries used. Wait 30 seconds and try again, or run one test prompt at aistudio.google.com to warm up your key first."
+                : "! " + error}
+            </div>
+          )}
 
           {/* OUTPUT */}
           {showOutput && (
