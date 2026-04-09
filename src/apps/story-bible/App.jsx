@@ -18,6 +18,7 @@ const MODELS = [
 // Set to true to run the full UI flow without any API key.
 // Every step returns mock output instantly. Flip to false before production.
 const TEST_MODE = false;
+const LS_KEY = "story_bible_gemini_key";
 
 // ── KEY HELPERS — never store or display the raw key ─────────────────────────
 const encodeKey = k => btoa(unescape(encodeURIComponent(k)));
