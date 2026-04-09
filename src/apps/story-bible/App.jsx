@@ -541,13 +541,9 @@ function splitSections(text, markers) {
 }
 
 // ── GEMINI CALL ───────────────────────────────────────────────────────────────
-// ── GEMINI CONFIG (UPDATED FOR 2026 API) ─────────────────────────────
+// ── GEMINI CONFIG (UPDATED FOR 2026 API) ────────────────────────
+─────
 
-const MODELS = [
-  "gemini-2.0-flash-lite",
-  "gemini-1.5-flash",
-  "gemini-1.5-pro"
-];
 
 const GEMINI_URL = (model, key) =>
   `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
