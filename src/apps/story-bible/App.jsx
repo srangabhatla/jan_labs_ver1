@@ -19,6 +19,21 @@ const MODELS = [
 // Every step returns mock output instantly. Flip to false before production.
 const TEST_MODE = false;
 const LS_KEY = "story_bible_gemini_key";
+const MAX_HIST = 30;
+
+function addToHistory(history, item){
+
+ const newHistory = [...history, item];
+
+ if(newHistory.length > MAX_HIST){
+
+  return newHistory.slice(-MAX_HIST);
+
+ }
+
+ return newHistory;
+
+}
 
 // ── KEY HELPERS — never store or display the raw key ─────────────────────────
 const encodeKey = k => btoa(unescape(encodeURIComponent(k)));
