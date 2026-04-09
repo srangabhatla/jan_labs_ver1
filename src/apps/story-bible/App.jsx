@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const MODEL        = "gemini-1.5-flash";
+const MODEL        = "gemini-1.5-flash-latest";
 const GEMINI_URL   = k => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${k}`;
 const LS_KEY       = "sbb_key_v5";
 const LS_HIST      = "sbb_history_v5";
