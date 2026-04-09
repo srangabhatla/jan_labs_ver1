@@ -291,7 +291,7 @@ Three works this story is in conversation with. One sentence each on feeling, no
 One paragraph: what to AVOID, texture of surfaces, the one image that makes this world instantly recognisable.`,
 };
 
-// ── STYLES ────────────────────────────────────────────────────────────────────
+// STYLES 
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=IM+Fell+English:ital@0;1&display=swap');
 
@@ -542,7 +542,7 @@ function splitSections(text, markers) {
 
 // ── GEMINI CALL ───────────────────────────────────────────────────────────────
 // ── GEMINI CONFIG (UPDATED FOR 2026 API) ────────────────────────
-─────
+
 
 
 const GEMINI_URL = (model, key) =>
