@@ -6,12 +6,33 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const MODEL        = "gemini-1.5-flash-latest";
-const GEMINI_URL   = k => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${k}`;
+const MODELS = [
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro"
+];
+
+const GEMINI_URL = (model, key) =>
+  `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
 const LS_KEY       = "sbb_key_v5";
 const LS_HIST      = "sbb_history_v5";
 const MAX_HIST     = 3;
 const TIMEOUT_MS   = 30000;
+async function warmupGemini(key){
+  try{
+    await fetch(GEMINI_URL(MODELS[0], key),{
+      method:"POST",
+      headers:{ "Content-Type":"application/json"},
+      body: JSON.stringify({
+        contents:[
+          { role:"user", parts:[{ text:"ping"}]}
+        ],
+        generationConfig:{ maxOutputTokens:5 }
+      })
+    })
+  }catch(e){}
+}
+
 
 // ── TEST MODE ─────────────────────────────────────────────────────────────────
 // Set to true to run the full UI flow without any API key.
@@ -520,56 +541,151 @@ function splitSections(text, markers) {
 }
 
 // ── GEMINI CALL ───────────────────────────────────────────────────────────────
+// ── GEMINI CONFIG (UPDATED FOR 2026 API) ─────────────────────────────
+
+const MODELS = [
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro"
+];
+
+const GEMINI_URL = (model, key) =>
+  `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
+
+async function warmupGemini(key){
+  try{
+    await fetch(GEMINI_URL(MODELS[0], key),{
+      method:"POST",
+      headers:{ "Content-Type":"application/json"},
+      body: JSON.stringify({
+        contents:[
+          { role:"user", parts:[{ text:"ping"}]}
+        ],
+        generationConfig:{ maxOutputTokens:5 }
+      })
+    })
+  }catch(e){}
+}
+
+
+// ── GEMINI CALL ─────────────────────────────────────────────────────
+
 async function callGemini(prompt, key, callKey) {
-  // TEST MODE — returns mock data instantly, no API call made
+
   if (TEST_MODE) {
     await new Promise(r => setTimeout(r, 1200));
     return MOCK[callKey] || "Mock response for " + callKey;
   }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  let res;
-  try {
-    res = await fetch(GEMINI_URL(key), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: SYS }] },
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.75, topP: 0.92, maxOutputTokens: 800 },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT",        threshold: "BLOCK_ONLY_HIGH" },
-          { category: "HARM_CATEGORY_HATE_SPEECH",       threshold: "BLOCK_ONLY_HIGH" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
-        ],
-      }),
-    });
-  } catch (e) {
-    clearTimeout(timer);
-    if (e.name === "AbortError") throw new Error("Step timed out after 30s. Check your connection and retry.");
-    throw new Error("Network error — check your connection.");
-  }
-  clearTimeout(timer);
 
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try { const j = await res.json(); msg = j?.error?.message || msg; } catch {}
-    if (res.status === 429) throw new Error("RATE_LIMIT_429");
-    if (res.status === 403) throw new Error("API key invalid or expired. Tap Change to update it.");
-    if (res.status === 400) throw new Error("Bad request: " + msg);
-    throw new Error(msg);
+  const TIMEOUT_MS = 30000;
+
+  for (const model of MODELS) {
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+
+      const res = await fetch(GEMINI_URL(model, key), {
+
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        signal: controller.signal,
+
+        body: JSON.stringify({
+
+          system_instruction: {
+            parts: [{ text: SYS }]
+          },
+
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }]
+            }
+          ],
+
+          generationConfig: {
+            temperature: 0.7,
+            topP: 0.9,
+            maxOutputTokens: 650
+          },
+
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
+          ]
+
+        })
+
+      });
+
+      clearTimeout(timer);
+
+      if (!res.ok) {
+
+        let msg = `HTTP ${res.status}`;
+
+        try {
+          const j = await res.json();
+          msg = j?.error?.message || msg;
+        } catch {}
+
+        if (res.status === 429) throw new Error("RATE_LIMIT_429");
+
+        if (res.status === 404) continue; // try next model
+
+        if (res.status === 403)
+          throw new Error("API key invalid or expired.");
+
+        throw new Error(msg);
+      }
+
+
+      const data = await res.json();
+
+      const candidate = data.candidates?.[0];
+
+      if (!candidate)
+        throw new Error("No response from Gemini.");
+
+      if (candidate.finishReason === "SAFETY")
+        throw new Error("Content blocked by safety filter.");
+
+      if (candidate.finishReason === "RECITATION")
+        throw new Error("Recitation filter triggered.");
+
+      const text =
+        candidate.content?.parts?.[0]?.text?.trim() || "";
+
+      if (!text || text.length < 40)
+        throw new Error("Empty response.");
+
+      return text;
+
+    }
+
+    catch (e) {
+
+      clearTimeout(timer);
+
+      if (e.name === "AbortError")
+        throw new Error("Step timed out after 30s.");
+
+      console.log("model failed:", model);
+
+    }
+
   }
 
-  const data = await res.json();
-  const candidate = data.candidates?.[0];
-  if (!candidate)                              throw new Error("No response from Gemini. Try again.");
-  if (candidate.finishReason === "SAFETY")     throw new Error("Content blocked by safety filter. Rephrase your concept.");
-  if (candidate.finishReason === "RECITATION") throw new Error("Recitation filter triggered. Adjust your inputs.");
-  const text = candidate.content?.parts?.[0]?.text?.trim() || "";
-  if (!text || text.length < 40)               throw new Error("Empty response. Please try again.");
-  return text;
+  throw new Error("All Gemini models failed");
+
 }
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
@@ -686,6 +802,7 @@ export default function App() {
 
     const d = { t: title.trim(), g: genre, p: prot.trim(), s: setting.trim(), c: concept.trim(), tone: tone.trim() };
     const key = decodeKey(localStorage.getItem(LS_KEY) || "") || keyInput.trim();
+    await warmupGemini(key);
 
     setRunning(true);
     setError("");
